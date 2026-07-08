@@ -25,6 +25,19 @@ char *_getenv(const char *name)
 }
 
 /**
+ * print_error - Prints standard shell error for command not found
+ * @argv0: Name of the shell program
+ * @cmd: The command that was not found
+ */
+void print_error(char *argv0, char *cmd)
+{
+	write(STDERR_FILENO, argv0, strlen(argv0));
+	write(STDERR_FILENO, ": 1: ", 5);
+	write(STDERR_FILENO, cmd, strlen(cmd));
+	write(STDERR_FILENO, ": not found\n", 12);
+}
+
+/**
  * get_location - Searches for the command in the PATH directories
  * @command: The command to locate
  *
@@ -32,7 +45,7 @@ char *_getenv(const char *name)
  */
 char *get_location(char *command)
 {
-	char *path, *path_copy, *path_token, *file_path;
+	char *path, *path_copy, *t, *file_path;
 	struct stat buffer;
 
 	if (!command)
@@ -53,20 +66,18 @@ char *get_location(char *command)
 	if (!path_copy)
 		return (NULL);
 	strcpy(path_copy, path);
-	path_token = strtok(path_copy, ":");
-	while (path_token != NULL)
+	t = strtok(path_copy, ":");
+	while (t)
 	{
-		file_path = malloc(strlen(path_token) + strlen(command) + 2);
-		if (!file_path)
-			break;
-		sprintf(file_path, "%s/%s", path_token, command);
+		file_path = malloc(strlen(t) + strlen(command) + 2);
+		sprintf(file_path, "%s/%s", t, command);
 		if (stat(file_path, &buffer) == 0)
 		{
 			free(path_copy);
 			return (file_path);
 		}
 		free(file_path);
-		path_token = strtok(NULL, ":");
+		t = strtok(NULL, ":");
 	}
 	free(path_copy);
 	return (NULL);
@@ -85,17 +96,18 @@ int execute_cmd(char **args, char *argv0, char *line)
 	char *cmd_path;
 	pid_t child_pid;
 	int status = 0;
+	char *envp[] = {NULL};
 
 	cmd_path = get_location(args[0]);
 	if (!cmd_path)
 	{
-		perror(argv0);
+		print_error(argv0, args[0]);
 		return (127);
 	}
 	child_pid = fork();
 	if (child_pid == 0)
 	{
-		execve(cmd_path, args, environ);
+		execve(cmd_path, args, environ ? environ : envp);
 		perror(argv0);
 		free(cmd_path);
 		free(line);
@@ -128,11 +140,11 @@ int main(int argc, char **argv)
 	while (1)
 	{
 		if (isatty(STDIN_FILENO))
-			printf("#cisfun$ ");
+			write(STDOUT_FILENO, "#cisfun$ ", 9);
 		if (getline(&line, &len, stdin) == -1)
 		{
 			if (isatty(STDIN_FILENO))
-				printf("\n");
+				write(STDOUT_FILENO, "\n", 1);
 			break;
 		}
 		line[strcspn(line, "\n")] = '\0';
