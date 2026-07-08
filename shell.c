@@ -8,7 +8,7 @@
 extern char **environ;
 
 /**
- * main - A basic UNIX command line interpreter with arguments
+ * main - A basic UNIX command line interpreter
  * @argc: The number of arguments passed to the program
  * @argv: An array of pointers to the arguments
  *
@@ -21,10 +21,10 @@ int main(int argc, char **argv)
 	ssize_t read;
 	pid_t child_pid;
 	int status, i;
-	char *args[128]; /* Maksimum 128 arqument qəbul edə bilən massiv */
+	char *args[128];
 	char *token;
 
-	(void)argc; /* İstifadə olunmayan dəyişən xəbərdarlığını ləğv etmək üçün */
+	(void)argc;
 
 	while (1)
 	{
@@ -32,8 +32,6 @@ int main(int argc, char **argv)
 			printf("#cisfun$ ");
 
 		read = getline(&line, &len, stdin);
-		
-		/* EOF (Ctrl+D) yoxlaması */
 		if (read == -1)
 		{
 			if (isatty(STDIN_FILENO))
@@ -41,11 +39,9 @@ int main(int argc, char **argv)
 			break;
 		}
 
-		/* getline-ın əlavə etdiyi yeni sətir simvolunu silmək */
 		if (line[read - 1] == '\n')
 			line[read - 1] = '\0';
 
-		/* Sətri boşluqlara və tablara görə hissələrə ayırmaq (Tokenization) */
 		i = 0;
 		token = strtok(line, " \t");
 		while (token != NULL)
@@ -54,9 +50,8 @@ int main(int argc, char **argv)
 			i++;
 			token = strtok(NULL, " \t");
 		}
-		args[i] = NULL; /* Arqumentlər massivini NULL ilə bitirmək şərtdir */
+		args[i] = NULL;
 
-		/* Əgər istifadəçi sadəcə "Enter" basıbsa və ya boşluq yazıbsa, dövrü davam et */
 		if (args[0] == NULL)
 			continue;
 
@@ -66,20 +61,18 @@ int main(int argc, char **argv)
 			perror("Fork failed");
 			continue;
 		}
-		
+
 		if (child_pid == 0)
 		{
-			/* Uşaq proses (Child process): komandanı icra et */
 			if (execve(args[0], args, environ) == -1)
 			{
 				perror(argv[0]);
 				free(line);
-				exit(127); /* Komanda tapılmadı xətası */
+				exit(127);
 			}
 		}
 		else
 		{
-			/* Valideyn proses (Parent process): uşağın işini bitirməsini gözlə */
 			wait(&status);
 		}
 	}
