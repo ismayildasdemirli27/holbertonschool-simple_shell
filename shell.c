@@ -1,12 +1,4 @@
-#include <stdio.h>
-#include <stdlib.h>
-#include <unistd.h>
-#include <sys/types.h>
-#include <sys/wait.h>
-#include <string.h>
-#include <sys/stat.h>
-
-extern char **environ;
+#include "shell.h"
 
 /**
  * _getenv - Gets the value of an environment variable
@@ -37,15 +29,12 @@ char *_getenv(const char *name)
 char *get_location(char *command)
 {
 	char *path, *path_copy, *path_token, *file_path;
-	int cmd_len, dir_len;
 	struct stat buffer;
 
 	if (stat(command, &buffer) == 0)
 	{
 		file_path = malloc(strlen(command) + 1);
-		if (file_path)
-			strcpy(file_path, command);
-		return (file_path);
+		return (file_path ? strcpy(file_path, command) : NULL);
 	}
 	path = _getenv("PATH");
 	if (!path)
@@ -57,17 +46,10 @@ char *get_location(char *command)
 	path_token = strtok(path_copy, ":");
 	while (path_token != NULL)
 	{
-		dir_len = strlen(path_token);
-		cmd_len = strlen(command);
-		file_path = malloc(dir_len + cmd_len + 2);
+		file_path = malloc(strlen(path_token) + strlen(command) + 2);
 		if (!file_path)
-		{
-			free(path_copy);
-			return (NULL);
-		}
-		strcpy(file_path, path_token);
-		strcat(file_path, "/");
-		strcat(file_path, command);
+			break;
+		sprintf(file_path, "%s/%s", path_token, command);
 		if (stat(file_path, &buffer) == 0)
 		{
 			free(path_copy);
@@ -81,34 +63,62 @@ char *get_location(char *command)
 }
 
 /**
+ * execute_cmd - Executes the command using fork and execve
+ * @args: Arguments array
+ * @argv0: Name of the shell program
+ * @line: The raw input line (for freeing on exit)
+ */
+void execute_cmd(char **args, char *argv0, char *line)
+{
+	char *cmd_path;
+	pid_t child_pid;
+	int status;
+
+	cmd_path = get_location(args[0]);
+	if (!cmd_path)
+	{
+		perror(argv0);
+		return;
+	}
+	child_pid = fork();
+	if (child_pid == 0)
+	{
+		execve(cmd_path, args, environ);
+		perror(argv0);
+		free(cmd_path);
+		free(line);
+		exit(127);
+	}
+	else
+		wait(&status);
+	free(cmd_path);
+}
+
+/**
  * main - A basic UNIX command line interpreter
- * @argc: The number of arguments
- * @argv: An array of pointers to the arguments
+ * @argc: Number of arguments
+ * @argv: Array of arguments
  *
  * Return: 0 on success
  */
 int main(int argc, char **argv)
 {
-	char *line = NULL, *token, *args[128], *cmd_path;
+	char *line = NULL, *token, *args[128];
 	size_t len = 0;
-	ssize_t read;
-	int status, i;
-	pid_t child_pid;
+	int i;
 
 	(void)argc;
 	while (1)
 	{
 		if (isatty(STDIN_FILENO))
 			printf("#cisfun$ ");
-		read = getline(&line, &len, stdin);
-		if (read == -1)
+		if (getline(&line, &len, stdin) == -1)
 		{
 			if (isatty(STDIN_FILENO))
 				printf("\n");
 			break;
 		}
-		if (line[read - 1] == '\n')
-			line[read - 1] = '\0';
+		line[strcspn(line, "\n")] = '\0';
 		i = 0;
 		token = strtok(line, " \t");
 		while (token)
@@ -119,24 +129,9 @@ int main(int argc, char **argv)
 		args[i] = NULL;
 		if (!args[0])
 			continue;
-		cmd_path = get_location(args[0]);
-		if (!cmd_path)
-		{
-			perror(argv[0]);
-			continue;
-		}
-		child_pid = fork();
-		if (child_pid == 0)
-		{
-			execve(cmd_path, args, environ);
-			perror(argv[0]);
-			free(cmd_path);
-			free(line);
-			exit(127);
-		}
-		else
-			wait(&status);
-		free(cmd_path);
+		if (strcmp(args[0], "exit") == 0)
+			break;
+		execute_cmd(args, argv[0], line);
 	}
 	free(line);
 	return (0);
