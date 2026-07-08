@@ -77,18 +77,20 @@ char *get_location(char *command)
  * @args: Arguments array
  * @argv0: Name of the shell program
  * @line: The raw input line (for freeing on exit)
+ *
+ * Return: The exit status of the executed command
  */
-void execute_cmd(char **args, char *argv0, char *line)
+int execute_cmd(char **args, char *argv0, char *line)
 {
 	char *cmd_path;
 	pid_t child_pid;
-	int status;
+	int status = 0;
 
 	cmd_path = get_location(args[0]);
 	if (!cmd_path)
 	{
 		perror(argv0);
-		return;
+		return (127);
 	}
 	child_pid = fork();
 	if (child_pid == 0)
@@ -100,8 +102,13 @@ void execute_cmd(char **args, char *argv0, char *line)
 		exit(127);
 	}
 	else
+	{
 		wait(&status);
+		if (WIFEXITED(status))
+			status = WEXITSTATUS(status);
+	}
 	free(cmd_path);
+	return (status);
 }
 
 /**
@@ -109,13 +116,13 @@ void execute_cmd(char **args, char *argv0, char *line)
  * @argc: Number of arguments
  * @argv: Array of arguments
  *
- * Return: 0 on success
+ * Return: 0 on success, or the exit status of the last command
  */
 int main(int argc, char **argv)
 {
 	char *line = NULL, *token, *args[128];
 	size_t len = 0;
-	int i;
+	int i, last_status = 0;
 
 	(void)argc;
 	while (1)
@@ -140,9 +147,12 @@ int main(int argc, char **argv)
 		if (!args[0])
 			continue;
 		if (strcmp(args[0], "exit") == 0)
-			break;
-		execute_cmd(args, argv[0], line);
+		{
+			free(line);
+			exit(last_status);
+		}
+		last_status = execute_cmd(args, argv[0], line);
 	}
 	free(line);
-	return (0);
+	return (last_status);
 }

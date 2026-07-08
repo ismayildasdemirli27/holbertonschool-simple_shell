@@ -13,6 +13,6 @@ extern char **environ;
 
 char *_getenv(const char *name);
 char *get_location(char *command);
-void execute_cmd(char **args, char *argv0, char *line);
+int execute_cmd(char **args, char *argv0, char *line);
 
 #endif /* SHELL_H */
