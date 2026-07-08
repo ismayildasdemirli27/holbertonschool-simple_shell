@@ -25,16 +25,20 @@ char *_getenv(const char *name)
 }
 
 /**
- * print_error - Prints standard shell error for command not found
- * @argv0: Name of the shell program
- * @cmd: The command that was not found
+ * print_env - Prints the current environment
  */
-void print_error(char *argv0, char *cmd)
+void print_env(void)
 {
-	write(STDERR_FILENO, argv0, strlen(argv0));
-	write(STDERR_FILENO, ": 1: ", 5);
-	write(STDERR_FILENO, cmd, strlen(cmd));
-	write(STDERR_FILENO, ": not found\n", 12);
+	int i = 0;
+
+	if (!environ)
+		return;
+	while (environ[i])
+	{
+		write(STDOUT_FILENO, environ[i], strlen(environ[i]));
+		write(STDOUT_FILENO, "\n", 1);
+		i++;
+	}
 }
 
 /**
@@ -101,7 +105,10 @@ int execute_cmd(char **args, char *argv0, char *line)
 	cmd_path = get_location(args[0]);
 	if (!cmd_path)
 	{
-		print_error(argv0, args[0]);
+		write(STDERR_FILENO, argv0, strlen(argv0));
+		write(STDERR_FILENO, ": 1: ", 5);
+		write(STDERR_FILENO, args[0], strlen(args[0]));
+		write(STDERR_FILENO, ": not found\n", 12);
 		return (127);
 	}
 	child_pid = fork();
@@ -162,6 +169,11 @@ int main(int argc, char **argv)
 		{
 			free(line);
 			exit(last_status);
+		}
+		if (strcmp(args[0], "env") == 0)
+		{
+			print_env();
+			continue;
 		}
 		last_status = execute_cmd(args, argv[0], line);
 	}
