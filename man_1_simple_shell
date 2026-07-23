@@ -1,0 +1,10 @@
+.TH SIMPLE_SHELL 1
+.SH NAME
+simple_shell \- a simple UNIX command interpreter
+.SH SYNOPSIS
+.B ./hsh
+.SH DESCRIPTION
+.B simple_shell
+is a basic command-line interpreter that executes commands read from the standard input. It mimics the basic functionalities of the sh shell.
+.SH AUTHOR
+Ismayil Dasdemirli
